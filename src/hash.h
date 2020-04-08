@@ -13,47 +13,46 @@
 #define EXIST 1
 #define NEXIST 0
 #define REMOVED 1
+#define PERCENTDECREASE (percentIncrease / 2)
+#define SIZEINCREASE (100 + ((float) percentIncrease / 2))
+#define SIZEDECREASE (100 + ((float) percentIncrease / 4))
 
-/*TODO Пересмотреть выбор типов данных*/
-struct TableRec{
+
+struct TableRec {
     std::string name;
     uint8_t hallNumber;
-    struct Time{
+    struct Time {
         uint8_t hour;
         uint8_t minute;
     } time;
 };
 
-class HashTable{
+class HashTable {
 private:
-    int maxSize;                                // max size of the table
-    int currentSize;                            // current size of the table
+    uint32_t maxSize;                                // max size of the table
+    uint32_t currentSize;                            // current size of the table
     uint8_t percentIncrease;                    // percentage of the table fullness at which it will increase
-    uint8_t percentDecrease;                    // percentage of the table emptiness at which it will decrease
-    uint8_t sizeIncrease;                       // size of a new increased table (in percentage)
-    uint8_t sizeDecrease;                       // size of a new decreased table (in percentage)
     TableRec *table;                            // link on the "head" of table
     bool *status;                               // FREE or BUSY
 
-    int hashFun_first(const uint8_t &key);
-    int hashFun_second(const uint8_t &key, const int &counter);
+    uint32_t hashFun_first(const uint8_t &key);
+    uint32_t hashFun_second(const uint8_t &key, const uint32_t &counter);
     void resize(const bool &mode);
-    void reHash(int position, int posTry);
+    void reHash(uint32_t position, uint32_t posTry);
 
 public:
-    HashTable(const int &maxSize, const int &percentIncrease);
+    HashTable(uint32_t maxSize, uint8_t percentIncrease);
     ~HashTable();
-
-    uint8_t add(const TableRec& record);
-    uint8_t remove(const TableRec& record);
-    bool find(const TableRec& record);
+    uint8_t add(const TableRec &record);
+    bool remove(const TableRec &record);
+    bool find(const TableRec &record);
     void print();
     void printStatus();
-};  
+};
 
 
-inline bool operator ==(const TableRec& firstArg, const TableRec &secondArg){
+inline bool operator==(const TableRec &firstArg, const TableRec &secondArg) {
     return ((firstArg.time.minute == secondArg.time.minute)
-           && (firstArg.time.hour == secondArg.time.hour)
-           && (firstArg.hallNumber == secondArg.hallNumber));
+            && (firstArg.time.hour == secondArg.time.hour)
+            && (firstArg.hallNumber == secondArg.hallNumber));
 }

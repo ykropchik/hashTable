@@ -4,21 +4,24 @@
 
 #include "hash.h"
 
-HashTable::HashTable(const int &maxSize, const int &percentIncrease) {
-    this->maxSize = maxSize;
+HashTable::HashTable(uint32_t maxSize, uint8_t percentIncrease) {
     this->currentSize = 0;
-    if ((percentIncrease < 20) || (percentIncrease > 90)){
+    this->table = new TableRec[maxSize];
+    this->status = new bool[maxSize];
+
+    if (maxSize > 0) {
+        this->maxSize = maxSize;
+    } else {
+        this->maxSize = 20;
+    }
+
+    if ((percentIncrease < 20) || (percentIncrease > 80)) {
         this->percentIncrease = 70;
     } else {
         this->percentIncrease = percentIncrease;
     }
-    this->table = new TableRec[maxSize];
-    this->status = new bool[maxSize];
-    this->percentDecrease = percentIncrease / 2;
-    this->sizeIncrease = (100 + (percentIncrease / 2));
-    this->sizeDecrease = (100 + (percentIncrease / 4));
 
-    for (int i = 0; i < maxSize; ++i){
+    for (uint32_t i = 0; i < maxSize; ++i) {
         status[i] = FREE;
     }
 }
@@ -28,31 +31,30 @@ HashTable::~HashTable() {
     delete[] this->status;
 }
 
-int HashTable::hashFun_first(const uint8_t &key) {
+uint32_t HashTable::hashFun_first(const uint8_t &key) {
     return key % maxSize;
 }
 
-int HashTable::hashFun_second(const uint8_t &key, const int &counter) {
+uint32_t HashTable::hashFun_second(const uint8_t &key, const uint32_t &counter) {
     return (key + counter * counter) % maxSize;
 }
 
-/*TODO Ебаный мусор после в выделенной памяти вестора status*/
 void HashTable::resize(const bool &mode) {
     TableRec *oldTable = table;
     bool *oldStatus = status;
-    int oldSize = maxSize;
+    uint32_t oldSize = maxSize;
     currentSize = 0;
 
     if (mode == INCREASE) {
-        maxSize = (int) ((float)maxSize * ((float) sizeIncrease / 100));
+        maxSize = (uint32_t) ((float) maxSize * ((float) SIZEINCREASE / 100));
     } else {
-        maxSize = (int) ((float) maxSize / ((float) sizeDecrease / 100));
+        maxSize = (uint32_t) ((float) maxSize / ((float) SIZEDECREASE / 100));
     }
 
     table = new TableRec[maxSize];
     status = new bool[maxSize];
 
-    for (int i = 0; i < maxSize; ++i){
+    for (uint32_t i = 0; i < maxSize; ++i) {
         status[i] = FREE;
     }
 
@@ -65,7 +67,7 @@ void HashTable::resize(const bool &mode) {
     delete[] oldTable;
 }
 
-void HashTable::reHash(int position, int posTry) {
+void HashTable::reHash(uint32_t position, uint32_t posTry) {
     position = hashFun_second(position, ++posTry);
     while (status[position] != FREE) {
         status[position] = FREE;
@@ -76,14 +78,14 @@ void HashTable::reHash(int position, int posTry) {
 }
 
 uint8_t HashTable::add(const TableRec &record) {
-    int position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
+    uint32_t position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
 
     if (status[position] == BUSY) {
         if (record == table[position]) {
             return FAIL;
         }
 
-        for (int i = 1; status[position] == BUSY; ++i) {
+        for (uint32_t i = 1; status[position] == BUSY; ++i) {
             position = hashFun_second(position, i);
 
             if (i < maxSize / 4) {
@@ -103,15 +105,15 @@ uint8_t HashTable::add(const TableRec &record) {
     return SUCCESS;
 }
 
-uint8_t HashTable::remove(const TableRec &record) {
-    int position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
+bool HashTable::remove(const TableRec &record) {
+    uint32_t position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
     bool isExist(NEXIST);
-    int posTry(0);
+    uint32_t posTry(0);
 
     if (table[position] == record) {
         isExist = EXIST;
     } else {
-        for (int i = 1; (isExist == NEXIST) && (i < maxSize / 4); ++i) {
+        for (uint32_t i = 1; (isExist == NEXIST) && (i < maxSize / 4); ++i) {
             position = hashFun_second(position, i);
             if (table[position] == record) {
                 isExist = EXIST;
@@ -125,7 +127,7 @@ uint8_t HashTable::remove(const TableRec &record) {
         --currentSize;
         reHash(position, posTry);
 
-        if ((currentSize * 100 / maxSize) <= percentDecrease) {
+        if ((currentSize * 100 / maxSize) <= PERCENTDECREASE) {
             resize(DECREASE);
         }
 
@@ -136,11 +138,11 @@ uint8_t HashTable::remove(const TableRec &record) {
 }
 
 bool HashTable::find(const TableRec &record) {
-    int position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
+    uint32_t position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
     if (table[position] == record) {
         return EXIST;
     } else {
-        for (int i = 1; (status[position] = BUSY) && (position < maxSize); ++i) {
+        for (uint32_t i = 1; (status[position] = BUSY) && (position < maxSize); ++i) {
             position = hashFun_second(position, i);
             if (table[position] == record) {
                 return EXIST;
@@ -151,7 +153,7 @@ bool HashTable::find(const TableRec &record) {
 }
 
 void HashTable::print() {
-    for (int i = 0; i < maxSize; ++i) {
+    for (uint32_t i = 0; i < maxSize; ++i) {
         if (status[i] == BUSY) {
             std::cout << i << " | "
                       << table[i].name << " | "
@@ -171,7 +173,7 @@ void HashTable::print() {
 }
 
 void HashTable::printStatus() {
-    for (int i = 0; i < maxSize; ++i) {
+    for (uint32_t i = 0; i < maxSize; ++i) {
         std::cout << status[i] << " ";
     }
     std::cout << "\n";
