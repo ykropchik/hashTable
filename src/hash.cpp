@@ -31,12 +31,12 @@ HashTable::~HashTable() {
     delete[] this->status;
 }
 
-uint32_t HashTable::hashFun_first(const uint8_t &key) {
-    return key % maxSize;
+uint32_t HashTable::hashFun_first(const Key &key) {
+    return (key.time.hour + key.time.minute + key.hallNumber) % maxSize;
 }
 
-uint32_t HashTable::hashFun_second(const uint8_t &key, const uint32_t &counter) {
-    return (key + counter * counter) % maxSize;
+uint32_t HashTable::hashFun_second(const uint32_t &hashCode, const uint32_t &counter) {
+    return (hashCode + counter * counter) % maxSize;
 }
 
 void HashTable::resize(const bool &mode) {
@@ -77,43 +77,57 @@ void HashTable::reHash(uint32_t position, uint32_t posTry) {
     }
 }
 
-uint8_t HashTable::add(const TableRec &record) {
-    uint32_t position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
+bool HashTable::add(const TableRec &record) {
+    uint32_t hashCode = hashFun_first({record.key.hallNumber, record.key.time.hour, record.key.time.minute});
 
-    if (status[position] == BUSY) {
-        if (record == table[position]) {
+    if (status[hashCode] == BUSY) {
+        if (record.key == table[hashCode].key) {
             return FAIL;
         }
 
-        for (uint32_t i = 1; status[position] == BUSY; ++i) {
-            position = hashFun_second(position, i);
+        bool success = false;
+        for (uint32_t i = 1; !success; ++i) {
+            hashCode = hashFun_second(hashCode, i);
 
-            if (i < maxSize / 4) {
-                return OVERFLOW;
+            if ((status[hashCode] == BUSY) && (record.key == table[hashCode].key)) {
+                return FAIL;
+            }
+
+            if (i > maxSize / 4) {
+                resize(INCREASE);
+                add(record);
+                return SUCCESS;
+            }
+
+            if (status[hashCode] == FREE) {
+                table[hashCode] = record;
+                status[hashCode] = BUSY;
+                currentSize++;
+                success = true;
             }
         }
-    }
+    } else {
+        table[hashCode] = record;
+        status[hashCode] = BUSY;
+        currentSize++;
 
-    table[position] = record;
-    status[position] = BUSY;
-    currentSize++;
-
-    if ((currentSize * 100 / maxSize) >= percentIncrease) {
-        resize(INCREASE);
+        if ((currentSize * 100 / maxSize) >= percentIncrease) {
+            resize(INCREASE);
+        }
     }
 
     return SUCCESS;
 }
 
 bool HashTable::remove(const TableRec &record) {
-    uint32_t position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
+    uint32_t position = hashFun_first({record.key.hallNumber, record.key.time.hour, record.key.time.minute});
     bool isExist(NEXIST);
     uint32_t posTry(0);
 
     if (table[position] == record) {
         isExist = EXIST;
     } else {
-        for (uint32_t i = 1; (isExist == NEXIST) && (i < maxSize / 4); ++i) {
+        for (uint32_t i = 1; (isExist == NEXIST) && (i < maxSize / 3); ++i) {
             position = hashFun_second(position, i);
             if (table[position] == record) {
                 isExist = EXIST;
@@ -138,7 +152,7 @@ bool HashTable::remove(const TableRec &record) {
 }
 
 bool HashTable::find(const TableRec &record) {
-    uint32_t position = hashFun_first(record.hallNumber + record.time.hour + record.time.minute);
+    uint32_t position = hashFun_first({record.key.hallNumber, record.key.time.hour, record.key.time.minute});
     if (table[position] == record) {
         return EXIST;
     } else {
@@ -157,16 +171,16 @@ void HashTable::print() {
         if (status[i] == BUSY) {
             std::cout << i << " | "
                       << table[i].name << " | "
-                      << (unsigned) table[i].hallNumber << " | "
-                      << (unsigned) table[i].time.hour << ":"
-                      << (unsigned) table[i].time.minute << " | "
-                      << hashFun_first(table[i].hallNumber + table[i].time.hour + table[i].time.minute) << "\n";
+                      << (unsigned) table[i].key.hallNumber << " | "
+                      << (unsigned) table[i].key.time.hour << ":"
+                      << (unsigned) table[i].key.time.minute << " | "
+                      << hashFun_first({table[i].key.hallNumber,table[i].key.time.hour, table[i].key.time.minute}) << "\n";
         } else {
             std::cout << i << " | "
                       << "------------" << " | "
                       << "0" << " | "
                       << "0" << ":"
-                      << "0" << " | " << hashFun_first(table[i].hallNumber + table[i].time.hour + table[i].time.minute)
+                      << "0" << " | " //<< hashFun_first({table[i].key.hallNumber,table[i].key.time.hour, table[i].key.time.minute})
                       << "\n";
         }
     }
